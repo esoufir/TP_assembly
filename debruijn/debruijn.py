@@ -140,6 +140,7 @@ def remove_paths(graph, path_list, delete_entry_node, delete_sink_node):
     :param delete_sink_node: (boolean) True->We remove the last node of a path
     :return: (nx.DiGraph) A directed graph object
     """
+    # Un noeud est un starting point s'il n'a pas de prédecesseurs
     pass
 
 
@@ -206,7 +207,12 @@ def get_starting_nodes(graph):
     :param graph: (nx.DiGraph) A directed graph object
     :return: (list) A list of all nodes without predecessors
     """
-    pass
+    list_entry_nodes = []
+    nodes = list(graph.nodes)
+    for node in nodes:
+        if len(list(graph.predecessors(node))) == 0:
+            list_entry_nodes.append(node)
+    return list_entry_nodes
 
 def get_sink_nodes(graph):
     """Get nodes without successors
@@ -214,7 +220,12 @@ def get_sink_nodes(graph):
     :param graph: (nx.DiGraph) A directed graph object
     :return: (list) A list of all nodes without successors
     """
-    pass
+    list_exit_nodes = []
+    nodes = list(graph.nodes)
+    for node in nodes:
+        if len(list(graph.successors(node)))== 0:
+            list_exit_nodes.append(node)
+    return list_exit_nodes
 
 def get_contigs(graph, starting_nodes, ending_nodes):
     """Extract the contigs from the graph
@@ -224,7 +235,17 @@ def get_contigs(graph, starting_nodes, ending_nodes):
     :param ending_nodes: (list) A list of nodes without successors
     :return: (list) List of [contiguous sequence and their length]
     """
-    pass
+    contigs = []
+    for starting_node in starting_nodes:
+        for ending_node in ending_nodes:
+            # If there is a pathway between the two nodes = contig
+            if nx.has_path(graph, starting_node, ending_node):
+                for path in nx.all_simple_paths(graph, starting_node, ending_node): 
+                    contig = path[0]
+                    for node in path[1:]:
+                        contig+=node[-1]
+                    contigs.append((contig,len(contig)))
+    return contigs
 
 def save_contigs(contigs_list, output_file):
     """Write all contigs in fasta format
@@ -232,7 +253,14 @@ def save_contigs(contigs_list, output_file):
     :param contig_list: (list) List of [contiguous sequence and their length]
     :param output_file: (str) Path to the output file
     """
-    pass
+    with open(output_file, "w") as f_out:
+        for i in range(len(contigs_list)):
+            seq,longueur = contigs_list[i]
+            print(seq, longueur)
+            # Writing the header:
+            f_out.write(f">contig_{i} len={longueur}\n")
+            f_out.write(f"{textwrap.fill(seq, width=80)}\n")
+
 
 
 def draw_graph(graph, graphimg_file): # pragma: no cover
@@ -267,11 +295,14 @@ def main(): # pragma: no cover
     """
     # Get arguments
     args = get_arguments()
+    dict_km = build_kmer_dict(args.fastq_file, 7)
+    graph = (build_graph(dict_km))
+    starting_nodes = get_starting_nodes(graph)
 
-    
-    dict_km = build_kmer_dict(args.fastq_file, 5)
-    build_graph(dict_km)
-
+    ending_nodes = get_sink_nodes(graph)
+    contigs = get_contigs(graph, starting_nodes, ending_nodes)
+    # Saving the contigs :
+    save_contigs(contigs, "test_output.fasta")
     # Fonctions de dessin du graphe
     # A decommenter si vous souhaitez visualiser un petit 
     # graphe
