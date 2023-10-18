@@ -124,7 +124,10 @@ def build_graph(kmer_dict):
     :param kmer_dict: A dictionnary object that identify all kmer occurrences.
     :return: A directed graph (nx) of all kmer substring and weight (occurrence).
     """
-    pass
+    graph = nx.DiGraph()
+    for k, v in kmer_dict.items():
+        graph.add_edge(k[:len(k)-1], k[1:len(k)], weight = v)
+    return graph
 
 
 def remove_paths(graph, path_list, delete_entry_node, delete_sink_node):
@@ -266,10 +269,8 @@ def main(): # pragma: no cover
     args = get_arguments()
 
     
-    dict_km = build_kmer_dict(args.fastq_file, 3)
-
-    for k,v in dict_km.items():
-        print("key",k,"val", v)
+    dict_km = build_kmer_dict(args.fastq_file, 5)
+    build_graph(dict_km)
 
     # Fonctions de dessin du graphe
     # A decommenter si vous souhaitez visualiser un petit 
