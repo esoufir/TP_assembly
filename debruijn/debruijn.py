@@ -14,6 +14,7 @@
 """Perform assembly based on debruijn graph."""
 
 import argparse
+from multiprocessing.spawn import is_forking
 import os
 import sys
 import networkx as nx
@@ -234,7 +235,29 @@ def simplify_bubbles(graph):
     :param graph: (nx.DiGraph) A directed graph object
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    bubble = False
+    ancestor = None
+    node_stock = None
+    for node in list(graph.nodes):
+        predecesseurs = list(graph.predecessors(node))
+        print("pres", predecesseurs)
+        if len(predecesseurs) > 1:
+            for i in range(len(predecesseurs) - 1):
+                for j in range(i + 1, len(predecesseurs)):
+                    ancestor = nx.lowest_common_ancestor(graph, predecesseurs[i], predecesseurs[j])
+                    node_stock=node
+                    if ancestor is not None:
+                        bubble=True
+                        break
+        if bubble:
+            break
+    if bubble:
+        # Deleting the node : 
+        graph = solve_bubble(graph, ancestor, node_stock)
+        graph = simplify_bubbles(graph)
+    return graph
+
+
 
 def solve_entry_tips(graph, starting_nodes):
     """Remove entry tips
