@@ -140,8 +140,21 @@ def remove_paths(graph, path_list, delete_entry_node, delete_sink_node):
     :param delete_sink_node: (boolean) True->We remove the last node of a path
     :return: (nx.DiGraph) A directed graph object
     """
-    # Un noeud est un starting point s'il n'a pas de prédecesseurs
-    pass
+    
+    for path in path_list:
+        # Tous les nœuds d’un chemin sont supprimés.
+        if delete_entry_node and delete_sink_node:
+            graph.remove_nodes_from(path)
+
+        # Tous les nœuds d’un chemin sont supprimés sauf le premier et le dernier.
+        elif not delete_entry_node and not delete_sink_node:
+            graph.remove_nodes_from(path[1:len(path)-1]) # -1 ?
+        # Tous les nœuds d’un chemin sont supprimés sauf le dernier nœud.
+        elif delete_entry_node:
+            graph.remove_nodes_from(path[:len(path)-1])
+        elif delete_sink_node:
+            graph.remove_nodes_from(path[1:])
+    return graph
 
 
 def select_best_path(graph, path_list, path_length, weight_avg_list, 
@@ -156,8 +169,35 @@ def select_best_path(graph, path_list, path_length, weight_avg_list,
     :param delete_sink_node: (boolean) True->We remove the last node of a path
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    sdv_weights = statistics.stdev(weight_avg_list)
 
+    indice_max_path = 0
+    max_val = 0
+    if sdv_weights>0:
+        for i in range(len(weight_avg_list)):
+            if weight_avg_list[i]>max_val:
+                indice_max_path=i
+                max_val = weight_avg_list[i]
+    else:
+        sdv_length = statistics.stdev(path_length)
+        if sdv_length > 0:
+            #Chemin le plus long : 
+            for i in range(len(path_length)):
+                if path_length[i]>max_val:
+                    indice_max_path=i
+                    max_val = path_length[i]
+        else : 
+            indice_max_path = random.randint(0, len(path_length))
+    print("INDICE MAX", indice_max_path)
+    path_to_remove = path_list[:indice_max_path] + path_list[indice_max_path+1:]
+    
+    print("TO RM",path_list[indice_max_path])
+    # Filtering the graph:
+    graph_cleaned = remove_paths(graph, path_to_remove, delete_entry_node, delete_sink_node)
+    print(graph_cleaned.edges())
+    return graph_cleaned
+            
+    
 def path_average_weight(graph, path):
     """Compute the weight of a path
 
@@ -175,7 +215,18 @@ def solve_bubble(graph, ancestor_node, descendant_node):
     :param descendant_node: (str) A downstream node in the graph
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    # Path between the two nodes :
+    path_length = []
+    path_weights = []
+    path_list = list(nx.all_simple_paths(graph, ancestor_node, descendant_node))
+    for path in path_list:
+        path_length.append(len(path))
+        # Poids des arretes : 
+        path_weights.append(path_average_weight(graph, path))
+    # Cleaning :
+    
+    graph = select_best_path(graph, path_list, path_length, path_weights, delete_entry_node=False, delete_sink_node=False)
+    return graph
 
 def simplify_bubbles(graph):
     """Detect and explode bubbles
