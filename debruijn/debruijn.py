@@ -189,13 +189,9 @@ def select_best_path(graph, path_list, path_length, weight_avg_list,
                     max_val = path_length[i]
         else : 
             indice_max_path = random.randint(0, len(path_length))
-    print("INDICE MAX", indice_max_path)
     path_to_remove = path_list[:indice_max_path] + path_list[indice_max_path+1:]
-    
-    print("TO RM",path_list[indice_max_path])
     # Filtering the graph:
     graph_cleaned = remove_paths(graph, path_to_remove, delete_entry_node, delete_sink_node)
-    print(graph_cleaned.edges())
     return graph_cleaned
             
     
@@ -240,7 +236,6 @@ def simplify_bubbles(graph):
     node_stock = None
     for node in list(graph.nodes):
         predecesseurs = list(graph.predecessors(node))
-        print("pres", predecesseurs)
         if len(predecesseurs) > 1:
             for i in range(len(predecesseurs) - 1):
                 for j in range(i + 1, len(predecesseurs)):
@@ -263,9 +258,30 @@ def solve_entry_tips(graph, starting_nodes):
     """Remove entry tips
 
     :param graph: (nx.DiGraph) A directed graph object
-    :return: (nx.DiGraph) A directed graph object
+    :param starting_nodes: (list) List of starting nodes
+    :return: (nx.DiGraph) A directed graph object without unwanted entry paths
     """
-    pass
+
+
+    for node in list(graph.nodes):
+        all_paths_for_node = []
+        predecessors = list(graph.predecessors(node))
+        if len(predecessors)>1:
+                for start_node in starting_nodes:
+                    if node not in starting_nodes:
+                        paths =  list(nx.all_simple_paths(graph, start_node, node))
+                        all_paths_for_node.append(paths[0])#toujours un seul path
+                        print("single path", paths)
+                print("ALL", all_paths_for_node)
+                if len(all_paths_for_node)>1 :
+                    path_length = [len(path) for path in all_paths_for_node]
+                    path_weigths = [path_average_weight(graph, all_paths_for_node[i])  if path_length[i] >1 else graph[paths[i][0]][paths[i][1]]["weight"] for i in range(len(all_paths_for_node)) ]
+                    #print(all_paths_for_node)
+                    print(path_weigths)
+                    graph = select_best_path(graph, all_paths_for_node,path_length, path_weigths, delete_entry_node=True, delete_sink_node=False)
+                    break
+    return graph
+
 
 def solve_out_tips(graph, ending_nodes):
     """Remove out tips
@@ -273,7 +289,25 @@ def solve_out_tips(graph, ending_nodes):
     :param graph: (nx.DiGraph) A directed graph object
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    for node in list(graph.nodes):
+        all_paths_for_node = []
+        successors = list(graph.successors(node))
+        if len(successors)>1:
+                for end_node in ending_nodes:
+                    if node not in ending_nodes:
+                        paths =  list(nx.all_simple_paths(graph, node, end_node))
+                        print(paths)
+                        all_paths_for_node.append(paths[0])#toujours un seul path
+                        print("single path", paths)
+                print("ALL", all_paths_for_node)
+                if len(all_paths_for_node)>1 :
+                    path_length = [len(path) for path in all_paths_for_node]
+                    path_weigths = [path_average_weight(graph, all_paths_for_node[i])  if path_length[i] >1 else graph[paths[i][0]][paths[i][1]]["weight"] for i in range(len(all_paths_for_node)) ]
+                    #print(all_paths_for_node)
+                    print(path_weigths)
+                    graph = select_best_path(graph, all_paths_for_node,path_length, path_weigths, delete_entry_node=False, delete_sink_node=True)
+                    break
+    return graph
 
 def get_starting_nodes(graph):
     """Get nodes without predecessors
