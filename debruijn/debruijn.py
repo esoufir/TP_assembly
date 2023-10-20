@@ -271,14 +271,11 @@ def solve_entry_tips(graph, starting_nodes):
                     if node not in starting_nodes:
                         paths =  list(nx.all_simple_paths(graph, start_node, node))
                         all_paths_for_node.append(paths[0])#toujours un seul path
-                        print("single path", paths)
-                print("ALL", all_paths_for_node)
                 if len(all_paths_for_node)>1 :
                     path_length = [len(path) for path in all_paths_for_node]
                     path_weigths = [path_average_weight(graph, all_paths_for_node[i])  if path_length[i] >1 else graph[paths[i][0]][paths[i][1]]["weight"] for i in range(len(all_paths_for_node)) ]
-                    #print(all_paths_for_node)
-                    print(path_weigths)
                     graph = select_best_path(graph, all_paths_for_node,path_length, path_weigths, delete_entry_node=True, delete_sink_node=False)
+                    #graph = solve_entry_tips(graph, starting_nodes)
                     break
     return graph
 
@@ -296,16 +293,12 @@ def solve_out_tips(graph, ending_nodes):
                 for end_node in ending_nodes:
                     if node not in ending_nodes:
                         paths =  list(nx.all_simple_paths(graph, node, end_node))
-                        print(paths)
                         all_paths_for_node.append(paths[0])#toujours un seul path
-                        print("single path", paths)
-                print("ALL", all_paths_for_node)
                 if len(all_paths_for_node)>1 :
                     path_length = [len(path) for path in all_paths_for_node]
                     path_weigths = [path_average_weight(graph, all_paths_for_node[i])  if path_length[i] >1 else graph[paths[i][0]][paths[i][1]]["weight"] for i in range(len(all_paths_for_node)) ]
-                    #print(all_paths_for_node)
-                    print(path_weigths)
                     graph = select_best_path(graph, all_paths_for_node,path_length, path_weigths, delete_entry_node=False, delete_sink_node=True)
+                    #graph = solve_out_tips(graph, ending_nodes)
                     break
     return graph
 
@@ -316,9 +309,8 @@ def get_starting_nodes(graph):
     :return: (list) A list of all nodes without predecessors
     """
     list_entry_nodes = []
-    nodes = list(graph.nodes)
-    for node in nodes:
-        if len(list(graph.predecessors(node))) == 0:
+    for node in graph.nodes():
+        if not any(graph.predecessors(node)):
             list_entry_nodes.append(node)
     return list_entry_nodes
 
@@ -329,9 +321,9 @@ def get_sink_nodes(graph):
     :return: (list) A list of all nodes without successors
     """
     list_exit_nodes = []
-    nodes = list(graph.nodes)
+    nodes = list(graph.nodes())
     for node in nodes:
-        if len(list(graph.successors(node)))== 0:
+        if not any ((graph.successors(node))):
             list_exit_nodes.append(node)
     return list_exit_nodes
 
@@ -347,11 +339,12 @@ def get_contigs(graph, starting_nodes, ending_nodes):
     for starting_node in starting_nodes:
         for ending_node in ending_nodes:
             # If there is a pathway between the two nodes = contig
+            print("end", len(graph.nodes()))
             if nx.has_path(graph, starting_node, ending_node):
                 for path in nx.all_simple_paths(graph, starting_node, ending_node): 
                     contig = path[0]
-                    for node in path[1:]:
-                        contig+=node[-1]
+                    for i in range(1, len(path)):
+                        contig+=path[i][-1]
                     contigs.append((contig,len(contig)))
     return contigs
 
@@ -364,7 +357,6 @@ def save_contigs(contigs_list, output_file):
     with open(output_file, "w") as f_out:
         for i in range(len(contigs_list)):
             seq,longueur = contigs_list[i]
-            print(seq, longueur)
             # Writing the header:
             f_out.write(f">contig_{i} len={longueur}\n")
             f_out.write(f"{textwrap.fill(seq, width=80)}\n")
@@ -403,14 +395,22 @@ def main(): # pragma: no cover
     """
     # Get arguments
     args = get_arguments()
-    dict_km = build_kmer_dict(args.fastq_file, 7)
-    graph = (build_graph(dict_km))
-    starting_nodes = get_starting_nodes(graph)
+    dict_km = build_kmer_dict(args.fastq_file, args.kmer_size)
+    graph = build_graph(dict_km)
+    graph = simplify_bubbles(graph)
 
+    starting_nodes = get_starting_nodes(graph)
+    ending_nodes = get_sink_nodes(graph)
+
+    graph = solve_entry_tips(graph, starting_nodes)
+    print("last",len(graph.nodes()) )
+    graph = solve_out_tips(graph, ending_nodes)
+    print("last",len(graph.nodes()) )
+    starting_nodes = get_starting_nodes(graph)
     ending_nodes = get_sink_nodes(graph)
     contigs = get_contigs(graph, starting_nodes, ending_nodes)
     # Saving the contigs :
-    save_contigs(contigs, "test_output.fasta")
+    save_contigs(contigs, args.output_file)
     # Fonctions de dessin du graphe
     # A decommenter si vous souhaitez visualiser un petit 
     # graphe
