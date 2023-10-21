@@ -83,7 +83,7 @@ def read_fastq(fastq_file):
     :return: A generator object that iterate the read sequences. 
     """
     with open(fastq_file, "r+") as f_in:
-        for line in f_in:
+        for _ in f_in:
             # line is already the first line
             yield next(f_in).strip()
             # Skipping the +
@@ -261,8 +261,6 @@ def solve_entry_tips(graph, starting_nodes):
     :param starting_nodes: (list) List of starting nodes
     :return: (nx.DiGraph) A directed graph object without unwanted entry paths
     """
-
-
     for node in list(graph.nodes):
         all_paths_for_node = []
         predecessors = list(graph.predecessors(node))
@@ -273,9 +271,12 @@ def solve_entry_tips(graph, starting_nodes):
                         all_paths_for_node.append(paths[0])#toujours un seul path
                 if len(all_paths_for_node)>1 :
                     path_length = [len(path) for path in all_paths_for_node]
-                    path_weigths = [path_average_weight(graph, all_paths_for_node[i])  if path_length[i] >1 else graph[paths[i][0]][paths[i][1]]["weight"] for i in range(len(all_paths_for_node)) ]
-                    graph = select_best_path(graph, all_paths_for_node,path_length, path_weigths, delete_entry_node=True, delete_sink_node=False)
-                    #graph = solve_entry_tips(graph, starting_nodes)
+                    # Si taille chemin == 1 => Poids chemin, sinon poid moyen du chemin:
+                    path_weigths = [path_average_weight(graph, all_paths_for_node[i])  
+                                    if path_length[i] >1 else graph[paths[i][0]][paths[i][1]]["weight"] 
+                                    for i in range(len(all_paths_for_node)) ]
+                    graph = select_best_path(graph, all_paths_for_node,path_length, 
+                                             path_weigths, delete_entry_node=True, delete_sink_node=False)
                     break
     return graph
 
@@ -296,9 +297,12 @@ def solve_out_tips(graph, ending_nodes):
                         all_paths_for_node.append(paths[0])#toujours un seul path
                 if len(all_paths_for_node)>1 :
                     path_length = [len(path) for path in all_paths_for_node]
-                    path_weigths = [path_average_weight(graph, all_paths_for_node[i])  if path_length[i] >1 else graph[paths[i][0]][paths[i][1]]["weight"] for i in range(len(all_paths_for_node)) ]
-                    graph = select_best_path(graph, all_paths_for_node,path_length, path_weigths, delete_entry_node=False, delete_sink_node=True)
-                    #graph = solve_out_tips(graph, ending_nodes)
+                    # Si taille chemin == 1 => Poids chemin, sinon poid moyen du chemin:
+                    path_weigths = [path_average_weight(graph, all_paths_for_node[i])  
+                                    if path_length[i] >1 else graph[paths[i][0]][paths[i][1]]["weight"] 
+                                    for i in range(len(all_paths_for_node)) ]
+                    graph = select_best_path(graph, all_paths_for_node,path_length, 
+                                             path_weigths, delete_entry_node=False, delete_sink_node=True)
                     break
     return graph
 
@@ -339,7 +343,6 @@ def get_contigs(graph, starting_nodes, ending_nodes):
     for starting_node in starting_nodes:
         for ending_node in ending_nodes:
             # If there is a pathway between the two nodes = contig
-            print("end", len(graph.nodes()))
             if nx.has_path(graph, starting_node, ending_node):
                 for path in nx.all_simple_paths(graph, starting_node, ending_node): 
                     contig = path[0]
@@ -395,28 +398,26 @@ def main(): # pragma: no cover
     """
     # Get arguments
     args = get_arguments()
+    # Building the graph:
     dict_km = build_kmer_dict(args.fastq_file, args.kmer_size)
     graph = build_graph(dict_km)
-    graph = simplify_bubbles(graph)
-
+    # Getting starting/ending nodes
     starting_nodes = get_starting_nodes(graph)
     ending_nodes = get_sink_nodes(graph)
-
+    # Simplifying graph's structures :
+    graph = simplify_bubbles(graph)
     graph = solve_entry_tips(graph, starting_nodes)
-    print("last",len(graph.nodes()) )
     graph = solve_out_tips(graph, ending_nodes)
-    print("last",len(graph.nodes()) )
+    # Resetting the starting/ending nodes after possible deletes
     starting_nodes = get_starting_nodes(graph)
     ending_nodes = get_sink_nodes(graph)
     contigs = get_contigs(graph, starting_nodes, ending_nodes)
     # Saving the contigs :
     save_contigs(contigs, args.output_file)
     # Fonctions de dessin du graphe
-    # A decommenter si vous souhaitez visualiser un petit 
-    # graphe
     # Plot the graph
-    # if args.graphimg_file:
-    #     draw_graph(graph, args.graphimg_file)
+    if args.graphimg_file:
+        draw_graph(graph, args.graphimg_file)
 
 
 if __name__ == '__main__': # pragma: no cover
